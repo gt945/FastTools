@@ -28,11 +28,11 @@ MainWindow::MainWindow(QWidget *parent) :
     model.setHorizontalHeaderItem(ColPath, new QStandardItem(QString("Path")));
     model.setHorizontalHeaderItem(ColAction, new QStandardItem(QString("Action")));
     model.setHorizontalHeaderItem(ColDelete, new QStandardItem(QString("Delete")));
+    loadFiles();
     setAcceptDrops(true);
     connect(this, SIGNAL(sendErrorMsg(QString)), this, SLOT(errorMsg(QString)));
     connect(&model, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)), this, SLOT(modelDataChanged(QModelIndex,QModelIndex,QVector<int>)));
-    loadFiles();
-    QPushButton *button = new QPushButton(QString("Test"));
+//    QPushButton *button = new QPushButton(QString("Test"));
 
     //this->ui->verticalLayout->insertWidget(this->ui->verticalLayout->indexOf(this->ui->verticalSpacer->widget()), button );
     //customCmdDialog.show();
@@ -56,7 +56,7 @@ void MainWindow::downloadClicked(bool)
 
     int err = checkError(execute(QString("adb push \"%1\" /data/local/tmp").arg(fullName)));
     if (dstPath != QString(".") && !err) {
-        QString ret = execute(QString("adb shell su -c cp \"/data/local/tmp/%1\" \"%2\"").arg(name, dstPath));
+        QString ret = execute(QString("adb shell su root cp \"/data/local/tmp/%1\" \"%2\"").arg(name, dstPath));
         checkError(ret);
         checkReadonly(ret);
     }
@@ -104,22 +104,29 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 {
     //if (event->mimeData()->hasFormat("text/plain"))
     event->acceptProposedAction();
-    //qDebug() << event->mimeData()->formats();
 }
 
 void MainWindow::dropEvent(QDropEvent *event)
 {
     event->acceptProposedAction();
-
-    QStringList fileList = event->mimeData()->text().split(QString("\n"));
-    for (int i = 0; i < fileList.length(); i++) {
-        addFile(fileList[i]);
+//    QStringList fileList = event->mimeData()->text().split(QString("\n"));
+//    for (int i = 0; i < fileList.length(); i++) {
+//        addFile(fileList[i]);
+//    }
+    if (event->mimeData()->hasUrls()) {
+        QList<QUrl> urlList = event->mimeData()->urls();
+        for (int i = 0; i < urlList.length(); i++) {
+            addFile(urlList[i].toLocalFile());
+        }
     }
     saveFiles();
 }
 
-void MainWindow::addFile(QString name)
+void MainWindow::addFile(QString name, QString directPath)
 {
+    QList<QStandardItem *>items;
+    QPushButton *actionButton;
+    QPushButton *deleteButton;
     int find = 0;
     for (int i = 0; i < model.rowCount(); i++) {
         if(model.item(i, 0)->text() == name) {
@@ -133,46 +140,47 @@ void MainWindow::addFile(QString name)
 
         QString fname = fileInfo.fileName(); // Return only a file name
 
-        QStandardItem *item = new QStandardItem(fname);
-        item->setToolTip(name);
-        item->setData(QVariant(name), dataRole);
-        model.appendRow(item);
+        items.insert(ColFile, new QStandardItem(fname));
+        items.at(ColFile)->setToolTip(name);
+        items.at(ColFile)->setData(QVariant(name), dataRole);
+        items.insert(ColType, new QStandardItem());
+        items.insert(ColPath, new QStandardItem());
+        items.insert(ColAction, new QStandardItem());
+        items.insert(ColDelete, new QStandardItem());
 
         if (fileInfo.suffix() == QString("zip")) {
-            QModelIndex index(item->index().sibling(item->index().row(), ColAction));
-            QPushButton *button = new QPushButton(QString("Sideload"));
-            button->setProperty("Item", qVariantFromValue((void *) item));
-            connect(button, SIGNAL(clicked(bool)), this, SLOT(sideloadClicked(bool)));
-            this->ui->tableView->setIndexWidget(index, button);
+            actionButton = new QPushButton(QString("Sideload"));
+            actionButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
+            connect(actionButton, SIGNAL(clicked(bool)), this, SLOT(sideloadClicked(bool)));
 
         } else if (fileInfo.suffix() == QString("apk")) {
-            QModelIndex index(item->index().sibling(item->index().row(), ColAction));
-            QPushButton *button = new QPushButton(QString("Install"));
-            button->setProperty("Item", qVariantFromValue((void *) item));
-            connect(button, SIGNAL(clicked(bool)), this, SLOT(installClicked(bool)));
-            this->ui->tableView->setIndexWidget(index, button);
+            actionButton = new QPushButton(QString("Install"));
+            actionButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
+            connect(actionButton, SIGNAL(clicked(bool)), this, SLOT(installClicked(bool)));
         } else {
             QString path(".");
-            if (name.contains(QString("/system/"))) {
+            if (directPath.length()) {
+                path = directPath;
+            } else if (name.contains(QString("/system/"))){
                 QRegExp rx(".*(/system/.*/).*");
                 if (rx.exactMatch(name)) {
                     path = rx.cap(1);
                 }
             }
-            model.setData(item->index().sibling(item->index().row(), ColPath), QVariant(path));
-            QModelIndex index(item->index().sibling(item->index().row(), ColAction));
-            QPushButton *button = new QPushButton(QString("Download"));
-            button->setProperty("Item", qVariantFromValue((void *) item));
-            connect(button, SIGNAL(clicked(bool)), this, SLOT(downloadClicked(bool)));
-            this->ui->tableView->setIndexWidget(index, button);
+
+            items.at(ColPath)->setData(QVariant(path), Qt::DisplayRole);
+            actionButton = new QPushButton(QString("Download"));
+            actionButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
+            connect(actionButton, SIGNAL(clicked(bool)), this, SLOT(downloadClicked(bool)));
         }
 
-        QModelIndex index(item->index().sibling(item->index().row(), ColDelete));
-        QPushButton *button = new QPushButton(QString("Delete"));
-        button->setProperty("Item", qVariantFromValue((void *) item));
-        connect(button, SIGNAL(clicked(bool)), this, SLOT(deleteClicked(bool)));
-        this->ui->tableView->setIndexWidget(index, button);
+        deleteButton = new QPushButton(QString("Delete"));
+        deleteButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
+        connect(deleteButton, SIGNAL(clicked(bool)), this, SLOT(deleteClicked(bool)));
+        model.appendRow(items);
 
+        this->ui->tableView->setIndexWidget(QModelIndex(items.at(ColFile)->index().sibling(items.at(ColFile)->index().row(), ColAction)), actionButton);
+        this->ui->tableView->setIndexWidget(QModelIndex(items.at(ColFile)->index().sibling(items.at(ColFile)->index().row(), ColDelete)), deleteButton);
     }
 }
 
@@ -252,7 +260,7 @@ void MainWindow::saveFiles()
     QSettings mySettings("Amlogic.com", "FastTools");
 
     for (int i = 0; i < model.rowCount(); i++) {
-        fileList.append(model.item(i, 0)->data(dataRole).toString());
+        fileList.append(model.item(i, ColFile)->data(dataRole).toString() + QString("\n")+ model.item(i, ColPath)->data(Qt::DisplayRole).toString());
     }
     mySettings.beginGroup("MainWindow");
     mySettings.setValue("FileList", fileList);
@@ -268,14 +276,16 @@ void MainWindow::loadFiles()
     if(mySettings.contains("FileList")) {
         fileList = mySettings.value("FileList").toStringList();
         for (int i = 0; i < fileList.length(); i++) {
-            addFile(fileList[i]);
+            QStringList strList = fileList[i].split(QString("\n"));
+            qDebug() << strList;
+            addFile(strList[0], strList[1]);
         }
     }
 }
 
 void MainWindow::on_remount_clicked()
 {
-    checkError(execute(QString("adb shell su -c mount -o remount,rw /system")));
+    checkError(execute(QString("adb shell su root mount -o remount,rw /system")));
 }
 
 void MainWindow::on_reboot_clicked()
@@ -290,20 +300,12 @@ void MainWindow::on_recovery_clicked()
 
 void MainWindow::on_killMserver_clicked()
 {
-    checkError(execute(QString("adb shell su -c killall mediaserver")));
+    checkError(execute(QString("adb shell su root killall mediaserver")));
 }
 
 void MainWindow::on_killDrmServer_clicked()
 {
-    checkError(execute(QString("adb shell su -c killall drmserver")));
-}
-
-void MainWindow::on_optee_clicked()
-{
-    checkError(execute(QString("adb shell su -c insmod /boot/optee.ko")));
-    checkError(execute(QString("adb shell su -c insmod /boot/optee_armtz.ko")));
-    checkError(execute(QString("adb shell su -c chmod 777 /dev/opteearmtz00")));
-    //checkError(execute(QString("adb shell su -c tee-supplicant&")));
+    checkError(execute(QString("adb shell su root killall drmserver")));
 }
 
 void MainWindow::on_add_clicked()
@@ -311,9 +313,7 @@ void MainWindow::on_add_clicked()
 
 }
 
-void MainWindow::modelDataChanged(QModelIndex a, QModelIndex b, QVector<int>c)
+void MainWindow::modelDataChanged(QModelIndex indexStart, QModelIndex indexStop, QVector<int>data)
 {
-    qDebug() << a;
-    qDebug() << b;
-    qDebug() << c;
+    saveFiles();
 }

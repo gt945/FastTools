@@ -78,13 +78,6 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="optee">
-            <property name="text">
-             <string>OPTEE</string>
-            </property>
-           </widget>
-          </item>
-          <item>
            <spacer name="verticalSpacer">
             <property name="orientation">
              <enum>Qt::Vertical</enum>
@@ -118,12 +111,12 @@
      <x>0</x>
      <y>0</y>
      <width>701</width>
-     <height>23</height>
+     <height>29</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
-     <string>Help</string>
+     <string>He&amp;lp</string>
     </property>
     <addaction name="actionUsage"/>
     <addaction name="actionAbout"/>
@@ -133,12 +126,12 @@
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionUsage">
    <property name="text">
-    <string>Usage</string>
+    <string>&amp;Usage</string>
    </property>
   </action>
   <action name="actionAbout">
    <property name="text">
-    <string>About</string>
+    <string>&amp;About</string>
    </property>
   </action>
  </widget>

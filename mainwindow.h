@@ -37,7 +37,6 @@ private slots:
     void on_recovery_clicked();
     void on_killMserver_clicked();
     void on_killDrmServer_clicked();
-    void on_optee_clicked();
     void on_add_clicked();
 
     void modelDataChanged(QModelIndex,QModelIndex,QVector<int>);
@@ -47,7 +46,7 @@ private:
     QStandardItemModel model;
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
-    void addFile(QString name);
+    void addFile(QString name, QString directPath = QString(""));
     void saveFiles();
     void loadFiles();
     QString execute(QString cmd, int wait = 1);
