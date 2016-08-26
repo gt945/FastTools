@@ -90,13 +90,6 @@
             </property>
            </spacer>
           </item>
-          <item>
-           <widget class="QPushButton" name="add">
-            <property name="text">
-             <string>Add Custom CMD</string>
-            </property>
-           </widget>
-          </item>
          </layout>
         </item>
        </layout>

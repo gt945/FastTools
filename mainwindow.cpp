@@ -24,7 +24,6 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->tableView->setModel(&model);
 
     model.setHorizontalHeaderItem(ColFile, new QStandardItem(QString("File")));
-    model.setHorizontalHeaderItem(ColType, new QStandardItem(QString("Type")));
     model.setHorizontalHeaderItem(ColPath, new QStandardItem(QString("Path")));
     model.setHorizontalHeaderItem(ColAction, new QStandardItem(QString("Action")));
     model.setHorizontalHeaderItem(ColDelete, new QStandardItem(QString("Delete")));
@@ -34,8 +33,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(&model, SIGNAL(dataChanged(QModelIndex,QModelIndex,QVector<int>)), this, SLOT(modelDataChanged(QModelIndex,QModelIndex,QVector<int>)));
 //    QPushButton *button = new QPushButton(QString("Test"));
 
-    //this->ui->verticalLayout->insertWidget(this->ui->verticalLayout->indexOf(this->ui->verticalSpacer->widget()), button );
-    //customCmdDialog.show();
 }
 
 MainWindow::~MainWindow()
@@ -83,6 +80,33 @@ void MainWindow::installClicked(bool)
     checkError(ret);
     checkFailure(ret);
     checkValidAPK(ret);
+}
+
+void MainWindow::updateClicked(bool)
+{
+    QPushButton* button = dynamic_cast<QPushButton*>(sender());
+    QStandardItem *item = (QStandardItem *)button->property("Item").value<void *>();
+    QString fullName = item->data(dataRole).toString();
+    QModelIndex index(item->index().sibling(item->index().row(), ColPath));
+
+    QString partition = model.data(index).toString();
+
+//    qDebug() << partition << fullName;
+    execute(QString("/home/tao/work/bin/update partition %1 \"%2\"").arg(partition,fullName), true);
+}
+
+void MainWindow::burnUbootClicked(bool)
+{
+    QPushButton* button = dynamic_cast<QPushButton*>(sender());
+    QStandardItem *item = (QStandardItem *)button->property("Item").value<void *>();
+    QString fullName = item->data(dataRole).toString();
+    QModelIndex index(item->index().sibling(item->index().row(), ColPath));
+
+    QString mem = model.data(index).toString();
+//    qDebug() << QString("update mwrite \"%2\"  mem %1 normal").arg(mem,fullName);
+//    qDebug() << QString("update bulkcmd \"store rom_write %1 0 180000\"").arg(mem);
+    execute(QString("/home/tao/work/bin/update mwrite \"%2\"  mem %1 normal").arg(mem,fullName), true);
+    execute(QString("/home/tao/work/bin/update bulkcmd \"store rom_write %1 0 180000\"").arg(mem), true);
 }
 
 void MainWindow::deleteClicked(bool)
@@ -143,7 +167,6 @@ void MainWindow::addFile(QString name, QString directPath)
         items.insert(ColFile, new QStandardItem(fname));
         items.at(ColFile)->setToolTip(name);
         items.at(ColFile)->setData(QVariant(name), dataRole);
-        items.insert(ColType, new QStandardItem());
         items.insert(ColPath, new QStandardItem());
         items.insert(ColAction, new QStandardItem());
         items.insert(ColDelete, new QStandardItem());
@@ -157,7 +180,22 @@ void MainWindow::addFile(QString name, QString directPath)
             actionButton = new QPushButton(QString("Install"));
             actionButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
             connect(actionButton, SIGNAL(clicked(bool)), this, SLOT(installClicked(bool)));
-        } else {
+        } else if (fileInfo.suffix() == QString("img")
+                   && (fileInfo.baseName() == "boot"
+                       || fileInfo.baseName() == "system"
+                       || fileInfo.baseName() == "dtb"
+                       || fileInfo.baseName() == "recovery")) {
+            items.at(ColPath)->setData(QVariant(fileInfo.baseName()), Qt::DisplayRole);
+
+            actionButton = new QPushButton(QString("Update"));
+            actionButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
+            connect(actionButton, SIGNAL(clicked(bool)), this, SLOT(updateClicked(bool)));
+        } else if (fname.startsWith("u-boot.bin") || fname == "u-boot.bin") {
+            items.at(ColPath)->setData(QVariant("0x1200000"), Qt::DisplayRole);
+            actionButton = new QPushButton(QString("BurnUboot"));
+            actionButton->setProperty("Item", qVariantFromValue((void *) items.at(ColFile)));
+            connect(actionButton, SIGNAL(clicked(bool)), this, SLOT(burnUbootClicked(bool)));
+        }else {
             QString path(".");
             if (directPath.length()) {
                 path = directPath;
@@ -194,7 +232,7 @@ QString MainWindow::execute(QString cmd, int wait)
         //p.waitForFinished(10000);
         p.waitForReadyRead(3000);
         QString ret = p.readAllStandardError();
-        //qDebug() << ret;
+        qDebug() << ret;
         p.waitForFinished(-1);
         ret += p.readAllStandardOutput();
         qDebug() << ret;

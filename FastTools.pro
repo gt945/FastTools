@@ -13,14 +13,11 @@ TEMPLATE = app
 
 
 SOURCES += main.cpp\
-        mainwindow.cpp \
-    customcmddialog.cpp
+        mainwindow.cpp
 
-HEADERS  += mainwindow.h \
-    customcmddialog.h
+HEADERS  += mainwindow.h
 
-FORMS    += mainwindow.ui \
-    customcmddialog.ui
+FORMS    += mainwindow.ui
 #QMAKE_LFLAGS += -Wl,-static -fdata-sections -ffunction-sections -Wl,--gc-sections -Wl,-s
 
 RESOURCES += \

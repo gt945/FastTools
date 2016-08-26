@@ -3,7 +3,6 @@
 
 #include <QMainWindow>
 #include <QStandardItemModel>
-#include "customcmddialog.h"
 
 namespace Ui {
 class MainWindow;
@@ -16,7 +15,6 @@ class MainWindow : public QMainWindow
 public:
     enum ColName {
         ColFile,
-        ColType,
         ColPath,
         ColAction,
         ColDelete
@@ -29,6 +27,8 @@ private slots:
     void downloadClicked(bool);
     void sideloadClicked(bool);
     void installClicked(bool);
+    void updateClicked(bool);
+    void burnUbootClicked(bool);
     void deleteClicked(bool);
 
     void errorMsg(QString msg);
@@ -42,7 +42,6 @@ private slots:
     void modelDataChanged(QModelIndex,QModelIndex,QVector<int>);
 private:
     Ui::MainWindow *ui;
-    CustomCmdDialog customCmdDialog;
     QStandardItemModel model;
     void dragEnterEvent(QDragEnterEvent *event);
     void dropEvent(QDropEvent *event);
